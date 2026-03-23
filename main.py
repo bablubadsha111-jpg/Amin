@@ -2,22 +2,22 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from transformers import pipeline
 import base64
+import traceback
 
-# ✅ CORS import
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# ✅ CORS enable (VERY IMPORTANT for frontend)
+# ✅ CORS enable
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # sab allow (testing ke liye)
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-tts = None  # model initially empty
+tts = None
 
 class TextInput(BaseModel):
     text: str
@@ -31,24 +31,34 @@ def generate_tts(input: TextInput):
     global tts
 
     try:
-        # ✅ model load only once
+        print("📥 Text received:", input.text)
+
+        # ✅ load model only once
         if tts is None:
+            print("⏳ Loading model...")
             tts = pipeline(
                 "text-to-speech",
-                model="facebook/mms-tts-eng"  # lightweight model
+                model="facebook/mms-tts-eng"
             )
+            print("✅ Model loaded")
 
         # ✅ generate audio
         result = tts(input.text)
         audio_bytes = result["audio"]
 
-        # ✅ convert to base64 string
+        # ✅ convert to base64
         audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
 
-        return {"audio": audio_base64}
+        print("✅ Audio generated")
+
+        return {
+            "audio": audio_base64
+        }
 
     except Exception as e:
-        # ✅ error handle (important for debugging)
+        print("❌ ERROR:", str(e))
+        print(traceback.format_exc())
+
         return {
             "error": str(e),
             "message": "TTS generation failed"
